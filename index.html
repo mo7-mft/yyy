@@ -2,12 +2,18 @@
 <html>
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🎮 3rb.io Multibox</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
             background: #0a0a0a;
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Arial, sans-serif;
             height: 100vh;
             overflow: hidden;
             display: flex;
@@ -23,139 +29,293 @@
             align-items: center;
             border-bottom: 2px solid #4fc3f7;
             flex-shrink: 0;
+            z-index: 10;
         }
-        .header h1 { color: #4fc3f7; font-size: 18px; }
-        .header .info { color: #888; font-size: 12px; }
 
-        /* اللاعبين */
-        .players {
+        .header h1 {
+            color: #4fc3f7;
+            font-size: 20px;
+        }
+
+        .header .info {
+            color: #888;
+            font-size: 13px;
+        }
+
+        .header .keys {
+            color: #666;
+            font-size: 12px;
+            background: #1a1a1a;
+            padding: 4px 12px;
+            border-radius: 5px;
+            border: 1px solid #333;
+        }
+
+        /* حاوية اللاعبين */
+        .players-container {
             display: flex;
             flex: 1;
-            gap: 4px;
-            padding: 4px;
-            height: calc(100vh - 60px);
+            gap: 5px;
+            padding: 5px;
+            height: calc(100vh - 70px);
         }
-        .player {
+
+        .player-box {
             flex: 1;
             background: #111;
-            border-radius: 8px;
+            border-radius: 10px;
             border: 2px solid #333;
             overflow: hidden;
             position: relative;
-            transition: 0.3s;
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
         }
-        .player.active-p1 { border-color: #4caf50; box-shadow: 0 0 30px rgba(76,175,80,0.15); }
-        .player.active-p2 { border-color: #ff9800; box-shadow: 0 0 30px rgba(255,152,0,0.15); }
 
-        .player .label {
+        .player-box.active-p1 {
+            border-color: #4caf50;
+            box-shadow: 0 0 30px rgba(76, 175, 80, 0.15);
+        }
+
+        .player-box.active-p2 {
+            border-color: #ff9800;
+            box-shadow: 0 0 30px rgba(255, 152, 0, 0.15);
+        }
+
+        .player-box .player-label {
             position: absolute;
             top: 10px;
             left: 15px;
             z-index: 5;
-            background: rgba(0,0,0,0.8);
-            padding: 3px 12px;
-            border-radius: 15px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 4px 14px;
+            border-radius: 20px;
             font-weight: bold;
-            font-size: 12px;
-            border: 1px solid rgba(255,255,255,0.1);
+            font-size: 13px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
             pointer-events: none;
         }
-        .player .label.p1 { color: #4caf50; border-color: #4caf50; }
-        .player .label.p2 { color: #ff9800; border-color: #ff9800; }
 
-        .player iframe {
+        .player-box .player-label.p1 {
+            color: #4caf50;
+            border-color: #4caf50;
+        }
+
+        .player-box .player-label.p2 {
+            color: #ff9800;
+            border-color: #ff9800;
+        }
+
+        .player-box .game-frame {
             width: 100%;
-            height: 100%;
+            flex: 1;
             border: none;
             background: #000;
         }
 
-        /* أزرار التحكم */
+        /* شريط التحكم السفلي */
         .controls {
             position: fixed;
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(0,0,0,0.92);
-            padding: 8px 16px;
-            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.92);
+            padding: 10px 20px;
+            border-radius: 12px;
             border: 1px solid #333;
             display: flex;
-            gap: 10px;
+            gap: 12px;
             align-items: center;
             backdrop-filter: blur(10px);
             z-index: 100;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.9);
         }
+
         .controls button {
-            padding: 5px 14px;
+            padding: 6px 16px;
             border: none;
-            border-radius: 5px;
+            border-radius: 6px;
             font-weight: bold;
-            font-size: 12px;
+            font-size: 13px;
             cursor: pointer;
-            transition: 0.2s;
+            transition: all 0.2s;
         }
-        .controls button:hover { transform: scale(1.05); }
-        .btn-p1 { background: #4caf50; color: white; }
-        .btn-p2 { background: #ff9800; color: white; }
-        .btn-switch { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
-        .controls .key { color: #666; font-size: 11px; background: #1a1a1a; padding: 2px 10px; border-radius: 4px; border: 1px solid #333; }
+
+        .controls button:hover {
+            transform: scale(1.05);
+        }
+
+        .btn-p1 {
+            background: #4caf50;
+            color: white;
+        }
+
+        .btn-p2 {
+            background: #ff9800;
+            color: white;
+        }
+
+        .btn-switch {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .controls .status {
+            color: #888;
+            font-size: 12px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 4px;
+        }
+
+        .status-dot.online {
+            background: #4caf50;
+            animation: pulse 1.5s infinite;
+        }
+
+        .status-dot.offline {
+            background: #ff4444;
+        }
+
+        @keyframes pulse {
+            0%,
+            100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.3;
+            }
+        }
+
+        /* إعلان تحذيري */
+        .notice {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ff6b6b;
+            font-size: 12px;
+            background: rgba(255, 0, 0, 0.1);
+            padding: 4px 15px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 0, 0, 0.2);
+            z-index: 99;
+        }
     </style>
 </head>
 <body>
 
+    <!-- الهيدر -->
     <div class="header">
-        <h1>🎮 Multibox</h1>
-        <span class="info">P1 ● P2 ● TAB للتبديل</span>
+        <h1>🎮 Multibox Pro</h1>
+        <div>
+            <span style="color: #4caf50;">● P1</span>
+            <span style="color: #ff9800; margin-left: 15px;">● P2</span>
+        </div>
+        <span class="keys">⌨️ TAB للتبديل</span>
     </div>
 
-    <div class="players">
-        <div class="player active-p1" id="box1">
-            <div class="label p1">🔵 P1</div>
-            <iframe id="frame1" src="https://3rb.io"></iframe>
+    <!-- اللاعبين -->
+    <div class="players-container">
+        <div class="player-box active-p1" id="box-p1">
+            <div class="player-label p1">🔵 P1</div>
+            <iframe class="game-frame" id="frame-p1" src="https://3rb.io"></iframe>
         </div>
-        <div class="player" id="box2">
-            <div class="label p2">🟠 P2</div>
-            <iframe id="frame2" src="https://3rb.io"></iframe>
+
+        <div class="player-box" id="box-p2">
+            <div class="player-label p2">🟠 P2</div>
+            <iframe class="game-frame" id="frame-p2" src="https://3rb.io"></iframe>
         </div>
     </div>
 
+    <!-- أزرار التحكم -->
     <div class="controls">
-        <button class="btn-p1" id="btn1">P1</button>
-        <button class="btn-switch" id="btnSwitch">🔄 TAB</button>
-        <button class="btn-p2" id="btn2">P2</button>
-        <span class="key">⌨️ TAB</span>
+        <button class="btn-p1" id="btn-p1">🎯 P1</button>
+        <button class="btn-switch" id="btn-switch">🔄 TAB</button>
+        <button class="btn-p2" id="btn-p2">🎯 P2</button>
+        <span class="status">
+            <span class="status-dot online" id="dot-p1"></span>P1
+            <span class="status-dot online" id="dot-p2" style="margin-left:10px;"></span>P2
+        </span>
     </div>
+
+    <div class="notice">⚠️ استخدم حسابات مختلفة في P1 و P2</div>
 
     <script>
-        let current = 1;
+        // ============================================================
+        // 🔥 منطق التبديل
+        // ============================================================
+        let currentPlayer = 1;
 
-        function setActive(p) {
-            current = p;
-            const b1 = document.getElementById('box1');
-            const b2 = document.getElementById('box2');
-            b1.classList.remove('active-p1', 'active-p2');
-            b2.classList.remove('active-p1', 'active-p2');
-            if (p === 1) b1.classList.add('active-p1');
-            else b2.classList.add('active-p2');
+        function setActive(player) {
+            currentPlayer = player;
+
+            const box1 = document.getElementById('box-p1');
+            const box2 = document.getElementById('box-p2');
+
+            box1.classList.remove('active-p1', 'active-p2');
+            box2.classList.remove('active-p1', 'active-p2');
+
+            if (player === 1) {
+                box1.classList.add('active-p1');
+            } else {
+                box2.classList.add('active-p2');
+            }
+
+            console.log('🔄 [P' + player + '] نشط');
         }
 
         function switchPlayer() {
-            setActive(current === 1 ? 2 : 1);
+            setActive(currentPlayer === 1 ? 2 : 1);
         }
 
-        document.getElementById('btn1').onclick = () => setActive(1);
-        document.getElementById('btn2').onclick = () => setActive(2);
-        document.getElementById('btnSwitch').onclick = switchPlayer;
+        // الأزرار
+        document.getElementById('btn-p1').addEventListener('click', function() {
+            setActive(1);
+        });
+        document.getElementById('btn-p2').addEventListener('click', function() {
+            setActive(2);
+        });
+        document.getElementById('btn-switch').addEventListener('click', switchPlayer);
 
-        document.addEventListener('keydown', (e) => {
+        // اختصار TAB
+        document.addEventListener('keydown', function(e) {
             if (e.key === 'Tab') {
                 e.preventDefault();
                 switchPlayer();
             }
+        }, true);
+
+        // ============================================================
+        // 🔥 محاولة تمرير الحركة للـ iframe النشط
+        // ============================================================
+        document.addEventListener('mousemove', function(e) {
+            try {
+                const frameId = currentPlayer === 1 ? 'frame-p1' : 'frame-p2';
+                const frame = document.getElementById(frameId);
+                if (frame && frame.contentWindow) {
+                    const ev = new MouseEvent('mousemove', {
+                        clientX: e.clientX,
+                        clientY: e.clientY,
+                        movementX: e.movementX || 0,
+                        movementY: e.movementY || 0
+                    });
+                    frame.contentWindow.dispatchEvent(ev);
+                }
+            } catch (err) {
+                // CORS يمنع الوصول - نتجاهل الخطأ
+            }
         });
 
-        console.log('✅ Multibox جاهز!');
+        console.log('✅ [Multibox] جاهز!');
+        console.log('📌 P1 و P2 في نفس الشاشة');
+        console.log('🔄 اضغط TAB للتبديل');
     </script>
+
 </body>
 </html>
