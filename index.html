@@ -18,7 +18,6 @@
             height: 100vh;
         }
         
-        /* اللعبة (Canvas) */
         .game-area {
             flex: 1;
             position: relative;
@@ -31,7 +30,6 @@
             display: block;
         }
         
-        /* لوحة التحكم الجانبية */
         .sidebar {
             width: 280px;
             background: rgba(20, 20, 40, 0.95);
@@ -53,7 +51,6 @@
             padding-bottom: 10px;
         }
         
-        /* الإعدادات */
         .settings {
             background: rgba(255,255,255,0.05);
             border-radius: 8px;
@@ -72,7 +69,6 @@
             margin-right: 8px;
         }
         
-        /* Targets */
         .targets {
             display: flex;
             gap: 10px;
@@ -104,7 +100,6 @@
             margin-top: 4px;
         }
         
-        /* TOTAL MASS */
         .total-mass {
             text-align: center;
             padding: 10px;
@@ -119,7 +114,6 @@
             color: #ffd700;
         }
         
-        /* أزرار التحكم السريع */
         .quick-buttons {
             display: grid;
             grid-template-columns: repeat(6, 1fr);
@@ -146,7 +140,6 @@
             transform: scale(0.9);
         }
         
-        /* Team Players */
         .team-players {
             display: flex;
             gap: 8px;
@@ -167,7 +160,6 @@
             background: rgba(255,255,255,0.1);
         }
         
-        /* شبكة الأزرار A1-E5 */
         .grid-buttons {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
@@ -202,7 +194,6 @@
         .grid-btn.row-d { border-color: rgba(255, 152, 0, 0.3); color: #FF9800; }
         .grid-btn.row-e { border-color: rgba(244, 67, 54, 0.3); color: #f44336; }
         
-        /* رسالة الخطأ */
         .error-msg {
             position: fixed;
             bottom: 20px;
@@ -218,7 +209,6 @@
             display: none;
         }
         
-        /* Scrollbar */
         .sidebar::-webkit-scrollbar { width: 4px; }
         .sidebar::-webkit-scrollbar-track { background: transparent; }
         .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
@@ -226,23 +216,19 @@
 </head>
 <body>
     <div class="container">
-        <!-- منطقة اللعبة -->
         <div class="game-area">
             <canvas id="gameCanvas"></canvas>
         </div>
         
-        <!-- لوحة التحكم -->
         <div class="sidebar">
             <h2>🎮 Multibox</h2>
             
-            <!-- الإعدادات -->
             <div class="settings">
                 <label><input type="checkbox" checked id="biggestCell"> BIGGEST CELL VIEWPORT</label>
                 <label><input type="checkbox" checked id="followMouse"> VIEWPORT FOLLOWING MOUSE</label>
                 <label><input type="checkbox" id="targetingPlayers"> TARGETING PLAYERS</label>
             </div>
             
-            <!-- Targets -->
             <div class="targets">
                 <button class="target-btn active" id="target1">
                     🎯 Target 1
@@ -254,13 +240,11 @@
                 </button>
             </div>
             
-            <!-- TOTAL MASS -->
             <div class="total-mass">
                 TOTAL MASS
                 <div class="number" id="totalMass">0</div>
             </div>
             
-            <!-- أزرار التحكم السريع -->
             <div class="quick-buttons">
                 <button class="quick-btn" data-cmd="follow">Follow</button>
                 <button class="quick-btn" data-cmd="split">Split</button>
@@ -270,7 +254,6 @@
                 <button class="quick-btn" data-cmd="target">Target</button>
             </div>
             
-            <!-- Team Players -->
             <div style="text-align:center;font-size:13px;color:#aaa;">Team players</div>
             <div class="team-players">
                 <button class="team-btn" data-team="1">👤 1</button>
@@ -278,7 +261,6 @@
                 <button class="team-btn" data-team="3">👤 3</button>
             </div>
             
-            <!-- شبكة الأزرار A1-E5 -->
             <div class="grid-buttons">
                 <button class="grid-btn row-a" data-key="A1">A1</button>
                 <button class="grid-btn row-a" data-key="A2">A2</button>
@@ -407,7 +389,7 @@
     window.addEventListener('resize', resize);
     
     // ============================================
-    // 4. كلاس الكرة (GameBall)
+    // 4. كلاس الكرة (مع إصلاح Origin)
     // ============================================
     
     class GameBall {
@@ -428,8 +410,12 @@
         
         connect() {
             try {
-                // ✅ اتصال WebSocket مباشر
-                this.ws = new WebSocket('wss://beta.3rb.io/ws');
+                // ✅ استخدم نفس النطاق الحالي
+                const host = window.location.hostname;
+                const wsUrl = `wss://${host}/ws`;
+                console.log(`🔗 ${this.name} يتصل بـ ${wsUrl}`);
+                
+                this.ws = new WebSocket(wsUrl);
                 this.ws.binaryType = 'arraybuffer';
                 
                 this.ws.onopen = () => {
@@ -543,7 +529,6 @@
     // 7. التحكم
     // ============================================
     
-    // لوحة المفاتيح
     document.addEventListener('keydown', (e) => {
         const key = e.key;
         const angles = {
@@ -565,14 +550,12 @@
         }
     });
     
-    // أزرار الشبكة (A1-E5)
     document.querySelectorAll('.grid-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const key = btn.dataset.key;
             console.log(`🔘 ${key} pressed`);
             const ball = getActiveBall();
             if (ball) {
-                // كل زر يرسل أمر مختلف
                 const commands = {
                     'A1': 0, 'A2': -Math.PI/4, 'A3': -Math.PI/2, 'A4': -3*Math.PI/4, 'A5': Math.PI,
                     'B1': 0, 'B2': -Math.PI/4, 'B3': -Math.PI/2, 'B4': -3*Math.PI/4, 'B5': Math.PI,
@@ -587,20 +570,15 @@
         });
     });
     
-    // أزرار التحكم السريع
     document.querySelectorAll('.quick-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const cmd = btn.dataset.cmd;
             console.log(`⚡ ${cmd} executed`);
             const ball = getActiveBall();
-            if (ball) {
-                if (cmd === 'split') ball.sendSplit();
-                // أوامر أخرى...
-            }
+            if (ball && cmd === 'split') ball.sendSplit();
         });
     });
     
-    // أزرار Team
     document.querySelectorAll('.team-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const team = btn.dataset.team;
@@ -618,14 +596,12 @@
         
         ctx.clearRect(0, 0, w, h);
         
-        // خلفية
         const grad = ctx.createRadialGradient(w/2, h/2, 0, w/2, h/2, w);
         grad.addColorStop(0, '#1a1a3e');
         grad.addColorStop(1, '#0a0a1a');
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, w, h);
         
-        // رسم كل الكرات
         Object.keys(balls).forEach(id => {
             const ball = balls[id];
             if (ball.players.length === 0) return;
@@ -633,7 +609,6 @@
             const p = ball.players[0];
             const radius = Math.max(10, Math.min(50, p.mass / 2));
             
-            // توهج
             try {
                 const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius * 2);
                 glow.addColorStop(0, ball.color + '40');
@@ -644,7 +619,6 @@
                 ctx.fill();
             } catch(e) {}
             
-            // الكرة
             ctx.shadowBlur = 20;
             ctx.shadowColor = ball.color;
             ctx.beginPath();
@@ -653,13 +627,11 @@
             ctx.fill();
             ctx.shadowBlur = 0;
             
-            // الاسم
             ctx.fillStyle = '#fff';
             ctx.font = 'bold 14px Arial';
             ctx.textAlign = 'center';
             ctx.fillText(ball.name, p.x, p.y - radius - 10);
             
-            // الكتلة
             ctx.fillStyle = '#ffd700';
             ctx.font = '12px Arial';
             ctx.fillText(p.mass, p.x, p.y + 4);
