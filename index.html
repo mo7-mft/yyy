@@ -299,7 +299,40 @@
     
     <script>
     // ============================================
-    // 1. دوال إنشاء الحزم (من تحليلنا)
+    // 0. ✅ Hooking: اعتراض اتصال اللعبة الأصلي
+    // ============================================
+    
+    let gameWS = null;
+    let gameReady = false;
+    
+    // حفظ WebSocket الأصلي
+    const OriginalWebSocket = window.WebSocket;
+    
+    // اعتراض WebSocket
+    window.WebSocket = function(url, protocols) {
+        const ws = new OriginalWebSocket(url, protocols);
+        
+        // إذا كان هذا اتصال اللعبة
+        if (url && url.includes('3rb.io')) {
+            gameWS = ws;
+            console.log('🔗 تم اعتراض اتصال اللعبة الأصلي');
+            
+            // ننتظر أول رسالة (مصافحة)
+            ws.addEventListener('message', function(event) {
+                if (!gameReady) {
+                    gameReady = true;
+                    console.log('✅ تمت المصافحة مع السيرفر');
+                    // الحين نقدر نضيف البوتات
+                    initBots();
+                }
+            });
+        }
+        
+        return ws;
+    };
+    
+    // ============================================
+    // 1. دوال إنشاء الحزم
     // ============================================
     
     function createInfoPacket(name, id) {
@@ -389,119 +422,86 @@
     window.addEventListener('resize', resize);
     
     // ============================================
-    // 4. كلاس الكرة (مع إصلاح Origin)
+    // 4. كلاس الكرة (يستخدم الاتصال الأصلي)
     // ============================================
     
-    class GameBall {
-        constructor(name, id, color) {
-            this.name = name;
-            this.id = id;
-            this.color = color;
-            this.x = 0;
-            this.y = 0;
-            this.mass = 50;
-            this.connected = false;
-            this.players = [];
-            this.reconnectAttempts = 0;
-            this.maxReconnect = 5;
-            
-            this.connect();
-        }
-        
-        connect() {
-            try {
-                // ✅ استخدم نفس النطاق الحالي
-                const host = window.location.hostname;
-                const wsUrl = `wss://${host}/ws`;
-                console.log(`🔗 ${this.name} يتصل بـ ${wsUrl}`);
-                
-                this.ws = new WebSocket(wsUrl);
-                this.ws.binaryType = 'arraybuffer';
-                
-                this.ws.onopen = () => {
-                    this.connected = true;
-                    this.reconnectAttempts = 0;
-                    console.log(`✅ ${this.name} متصل`);
-                    this.ws.send(createInfoPacket(this.name, this.id));
-                    document.getElementById('errorMsg').style.display = 'none';
-                };
-                
-                this.ws.onmessage = (e) => {
-                    if (e.data instanceof ArrayBuffer) {
-                        const data = new Uint8Array(e.data);
-                        if (data[0] === 0x10) {
-                            this.players = parsePlayers(data);
-                            if (this.players.length > 0) {
-                                this.x = this.players[0].x;
-                                this.y = this.players[0].y;
-                                this.mass = this.players[0].mass;
-                            }
-                        }
-                    }
-                };
-                
-                this.ws.onclose = () => {
-                    this.connected = false;
-                    console.log(`❌ ${this.name} غير متصل`);
-                    document.getElementById('errorMsg').style.display = 'block';
-                    
-                    if (this.reconnectAttempts < this.maxReconnect) {
-                        this.reconnectAttempts++;
-                        setTimeout(() => this.connect(), 3000);
-                    }
-                };
-                
-                this.ws.onerror = (err) => {
-                    console.error(`⚠️ خطأ في ${this.name}:`, err);
-                };
-                
-            } catch(e) {
-                console.error(`❌ فشل اتصال ${this.name}:`, e);
-                setTimeout(() => this.connect(), 2000);
-            }
-        }
-        
-        sendMove(angle) {
-            if (!this.connected) {
-                console.warn(`${this.name}: غير متصل`);
-                return;
-            }
-            try {
-                this.ws.send(createMovePacket(angle));
-            } catch(e) {
-                console.error('خطأ في الإرسال:', e);
-            }
-        }
-        
-        sendSplit() {
-            if (!this.connected) return;
-            try {
-                this.ws.send(createSplitPacket());
-            } catch(e) {
-                console.error('خطأ في الإرسال:', e);
-            }
-        }
-    }
-    
-    // ============================================
-    // 5. إنشاء الكرات
-    // ============================================
-    
-    const balls = {};
+    let bots = {};
+    let botCount = 0;
+    const MAX_BOTS = 5;
     const ballColors = ['#4CAF50', '#f44336', '#2196F3', '#FFC107', '#9C27B0'];
     
-    function addBall(name, id) {
-        const color = ballColors[(id - 1) % ballColors.length];
-        balls[id] = new GameBall(name, id, color);
+    function initBots() {
+        if (!gameWS) {
+            console.warn('⚠️ لا يوجد اتصال لعبة');
+            return;
+        }
+        
+        console.log('🤖 جاري إضافة البوتات...');
+        
+        // نضيف بوتات بعد المصافحة
+        for (let i = 1; i <= MAX_BOTS; i++) {
+            setTimeout(() => {
+                addBot('P' + i, i);
+            }, i * 800);
+        }
     }
     
-    // إضافة 5 كرات
-    for (let i = 1; i <= 5; i++) {
-        addBall('P' + i, i);
+    function addBot(name, id) {
+        try {
+            // ✅ استخدم نفس النطاق الحالي
+            const host = window.location.hostname;
+            const wsUrl = `wss://${host}/ws`;
+            
+            const ws = new OriginalWebSocket(wsUrl);
+            ws.binaryType = 'arraybuffer';
+            
+            ws.onopen = () => {
+                console.log(`✅ ${name} متصل`);
+                // نرسل حزمة التسجيل بعد تأخير بسيط
+                setTimeout(() => {
+                    ws.send(createInfoPacket(name, id));
+                }, 500);
+            };
+            
+            ws.onmessage = (e) => {
+                if (e.data instanceof ArrayBuffer) {
+                    const data = new Uint8Array(e.data);
+                    if (data[0] === 0x10) {
+                        const players = parsePlayers(data);
+                        if (players.length > 0) {
+                            bots[id] = {
+                                name: name,
+                                data: players[0],
+                                ws: ws,
+                                connected: true
+                            };
+                            updateUI();
+                        }
+                    }
+                }
+            };
+            
+            ws.onclose = () => {
+                console.log(`❌ ${name} غير متصل`);
+                if (bots[id]) {
+                    bots[id].connected = false;
+                }
+                // محاولة إعادة الاتصال
+                setTimeout(() => addBot(name, id), 5000);
+            };
+            
+            ws.onerror = (err) => {
+                console.error(`⚠️ خطأ في ${name}:`, err);
+            };
+            
+        } catch(e) {
+            console.error(`❌ فشل اتصال ${name}:`, e);
+            setTimeout(() => addBot(name, id), 3000);
+        }
     }
     
     // ============================================
-    // 6. نظام Target
+    // 5. نظام Target
     // ============================================
     
     let activeTarget = 'target1';
@@ -520,13 +520,13 @@
     document.getElementById('target1').addEventListener('click', () => switchTarget('target1'));
     document.getElementById('target2').addEventListener('click', () => switchTarget('target2'));
     
-    function getActiveBall() {
+    function getActiveBot() {
         const id = targetMap[activeTarget];
-        return balls[id] || null;
+        return bots[id] || null;
     }
     
     // ============================================
-    // 7. التحكم
+    // 6. التحكم
     // ============================================
     
     document.addEventListener('keydown', (e) => {
@@ -540,13 +540,17 @@
         
         if (['w', 'W', 's', 'S', 'a', 'A', 'd', 'D'].includes(key)) {
             e.preventDefault();
-            const ball = getActiveBall();
-            if (ball) ball.sendMove(angles[key]);
+            const bot = getActiveBot();
+            if (bot && bot.connected) {
+                bot.ws.send(createMovePacket(angles[key]));
+            }
         }
         if (key === ' ') {
             e.preventDefault();
-            const ball = getActiveBall();
-            if (ball) ball.sendSplit();
+            const bot = getActiveBot();
+            if (bot && bot.connected) {
+                bot.ws.send(createSplitPacket());
+            }
         }
     });
     
@@ -554,8 +558,8 @@
         btn.addEventListener('click', () => {
             const key = btn.dataset.key;
             console.log(`🔘 ${key} pressed`);
-            const ball = getActiveBall();
-            if (ball) {
+            const bot = getActiveBot();
+            if (bot && bot.connected) {
                 const commands = {
                     'A1': 0, 'A2': -Math.PI/4, 'A3': -Math.PI/2, 'A4': -3*Math.PI/4, 'A5': Math.PI,
                     'B1': 0, 'B2': -Math.PI/4, 'B3': -Math.PI/2, 'B4': -3*Math.PI/4, 'B5': Math.PI,
@@ -564,7 +568,7 @@
                     'E1': 0, 'E2': -Math.PI/4, 'E3': -Math.PI/2, 'E4': -3*Math.PI/4, 'E5': Math.PI
                 };
                 if (commands[key] !== undefined) {
-                    ball.sendMove(commands[key]);
+                    bot.ws.send(createMovePacket(commands[key]));
                 }
             }
         });
@@ -574,8 +578,10 @@
         btn.addEventListener('click', () => {
             const cmd = btn.dataset.cmd;
             console.log(`⚡ ${cmd} executed`);
-            const ball = getActiveBall();
-            if (ball && cmd === 'split') ball.sendSplit();
+            const bot = getActiveBot();
+            if (bot && bot.connected && cmd === 'split') {
+                bot.ws.send(createSplitPacket());
+            }
         });
     });
     
@@ -587,7 +593,7 @@
     });
     
     // ============================================
-    // 8. عرض الكرات على Canvas
+    // 7. عرض الكرات
     // ============================================
     
     function drawAllBalls() {
@@ -602,16 +608,17 @@
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, w, h);
         
-        Object.keys(balls).forEach(id => {
-            const ball = balls[id];
-            if (ball.players.length === 0) return;
+        Object.keys(bots).forEach(id => {
+            const bot = bots[id];
+            if (!bot || !bot.data) return;
             
-            const p = ball.players[0];
+            const p = bot.data;
             const radius = Math.max(10, Math.min(50, p.mass / 2));
+            const color = ballColors[(parseInt(id) - 1) % ballColors.length];
             
             try {
                 const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius * 2);
-                glow.addColorStop(0, ball.color + '40');
+                glow.addColorStop(0, color + '40');
                 glow.addColorStop(1, 'transparent');
                 ctx.fillStyle = glow;
                 ctx.beginPath();
@@ -620,17 +627,17 @@
             } catch(e) {}
             
             ctx.shadowBlur = 20;
-            ctx.shadowColor = ball.color;
+            ctx.shadowColor = color;
             ctx.beginPath();
             ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
-            ctx.fillStyle = ball.color;
+            ctx.fillStyle = color;
             ctx.fill();
             ctx.shadowBlur = 0;
             
             ctx.fillStyle = '#fff';
             ctx.font = 'bold 14px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText(ball.name, p.x, p.y - radius - 10);
+            ctx.fillText(bot.name, p.x, p.y - radius - 10);
             
             ctx.fillStyle = '#ffd700';
             ctx.font = '12px Arial';
@@ -639,36 +646,38 @@
     }
     
     // ============================================
-    // 9. تحديث TOTAL MASS
+    // 8. تحديث TOTAL MASS
     // ============================================
     
-    function updateTotalMass() {
+    function updateUI() {
         let total = 0;
-        Object.keys(balls).forEach(id => {
-            const ball = balls[id];
-            if (ball.players.length > 0) {
-                total += ball.players[0].mass;
+        Object.keys(bots).forEach(id => {
+            const bot = bots[id];
+            if (bot && bot.data) {
+                total += bot.data.mass;
             }
         });
         document.getElementById('totalMass').textContent = total;
+        
+        // تحديث أسماء Targets
+        if (bots[1]) document.getElementById('target1Status').textContent = bots[1].name;
+        if (bots[2]) document.getElementById('target2Status').textContent = bots[2].name;
     }
     
     // ============================================
-    // 10. حلقة الرسم
+    // 9. حلقة الرسم
     // ============================================
     
     function gameLoop() {
         drawAllBalls();
-        updateTotalMass();
         requestAnimationFrame(gameLoop);
     }
     gameLoop();
     
     console.log('🎮 Multibox جاهز!');
-    console.log('🔗 5 كرات متصلة');
+    console.log('🔗 في انتظار اتصال اللعبة الأصلي...');
     console.log('🎯 Target 1 → P1, Target 2 → P2');
     console.log('⌨️ WASD + Space للكرة النشطة');
-    console.log('📡 جاري الاتصال بالسيرفر...');
     </script>
 </body>
 </html>
