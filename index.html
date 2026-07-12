@@ -41,6 +41,7 @@
             display: flex;
             flex-direction: column;
             gap: 12px;
+            max-height: 100vh;
         }
         
         .sidebar h2 {
@@ -126,12 +127,12 @@
         }
         
         .quick-btn {
-            padding: 8px;
+            padding: 8px 0;
             background: rgba(255,255,255,0.05);
             border: 1px solid rgba(255,255,255,0.1);
             border-radius: 4px;
             color: #fff;
-            font-size: 12px;
+            font-size: 11px;
             cursor: pointer;
             transition: all 0.2s;
             text-align: center;
@@ -162,6 +163,10 @@
             cursor: pointer;
         }
         
+        .team-btn:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        
         /* شبكة الأزرار A1-E5 */
         .grid-buttons {
             display: grid;
@@ -183,7 +188,8 @@
         }
         
         .grid-btn:hover {
-            background: rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.15);
+            transform: scale(1.05);
         }
         
         .grid-btn:active {
@@ -195,6 +201,27 @@
         .grid-btn.row-c { border-color: rgba(255, 193, 7, 0.3); color: #FFC107; }
         .grid-btn.row-d { border-color: rgba(255, 152, 0, 0.3); color: #FF9800; }
         .grid-btn.row-e { border-color: rgba(244, 67, 54, 0.3); color: #f44336; }
+        
+        /* رسالة الخطأ */
+        .error-msg {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(244, 67, 54, 0.2);
+            border: 1px solid rgba(244, 67, 54, 0.3);
+            color: #f44336;
+            padding: 8px 20px;
+            border-radius: 10px;
+            font-size: 12px;
+            z-index: 200;
+            display: none;
+        }
+        
+        /* Scrollbar */
+        .sidebar::-webkit-scrollbar { width: 4px; }
+        .sidebar::-webkit-scrollbar-track { background: transparent; }
+        .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
     </style>
 </head>
 <body>
@@ -210,9 +237,9 @@
             
             <!-- الإعدادات -->
             <div class="settings">
-                <label><input type="checkbox" checked> BIGGEST CELL VIEWPORT</label>
-                <label><input type="checkbox" checked> VIEWPORT FOLLOWING MOUSE</label>
-                <label><input type="checkbox"> TARGETING PLAYERS</label>
+                <label><input type="checkbox" checked id="biggestCell"> BIGGEST CELL VIEWPORT</label>
+                <label><input type="checkbox" checked id="followMouse"> VIEWPORT FOLLOWING MOUSE</label>
+                <label><input type="checkbox" id="targetingPlayers"> TARGETING PLAYERS</label>
             </div>
             
             <!-- Targets -->
@@ -286,9 +313,11 @@
         </div>
     </div>
     
+    <div class="error-msg" id="errorMsg">⚠️ لا يمكن الاتصال بالسيرفر</div>
+    
     <script>
     // ============================================
-    // 1. دوال إنشاء الحزم (من تحليلنا السابق)
+    // 1. دوال إنشاء الحزم (من تحليلنا)
     // ============================================
     
     function createInfoPacket(name, id) {
@@ -378,7 +407,7 @@
     window.addEventListener('resize', resize);
     
     // ============================================
-    // 4. كلاس الكرة (Player)
+    // 4. كلاس الكرة (GameBall)
     // ============================================
     
     class GameBall {
@@ -391,19 +420,24 @@
             this.mass = 50;
             this.connected = false;
             this.players = [];
+            this.reconnectAttempts = 0;
+            this.maxReconnect = 5;
             
             this.connect();
         }
         
         connect() {
             try {
+                // ✅ اتصال WebSocket مباشر
                 this.ws = new WebSocket('wss://beta.3rb.io/ws');
                 this.ws.binaryType = 'arraybuffer';
                 
                 this.ws.onopen = () => {
                     this.connected = true;
+                    this.reconnectAttempts = 0;
                     console.log(`✅ ${this.name} متصل`);
                     this.ws.send(createInfoPacket(this.name, this.id));
+                    document.getElementById('errorMsg').style.display = 'none';
                 };
                 
                 this.ws.onmessage = (e) => {
@@ -416,8 +450,6 @@
                                 this.y = this.players[0].y;
                                 this.mass = this.players[0].mass;
                             }
-                            this.draw();
-                            this.updateTotalMass();
                         }
                     }
                 };
@@ -425,26 +457,43 @@
                 this.ws.onclose = () => {
                     this.connected = false;
                     console.log(`❌ ${this.name} غير متصل`);
-                    setTimeout(() => this.connect(), 3000);
+                    document.getElementById('errorMsg').style.display = 'block';
+                    
+                    if (this.reconnectAttempts < this.maxReconnect) {
+                        this.reconnectAttempts++;
+                        setTimeout(() => this.connect(), 3000);
+                    }
+                };
+                
+                this.ws.onerror = (err) => {
+                    console.error(`⚠️ خطأ في ${this.name}:`, err);
                 };
                 
             } catch(e) {
+                console.error(`❌ فشل اتصال ${this.name}:`, e);
                 setTimeout(() => this.connect(), 2000);
             }
         }
         
         sendMove(angle) {
-            if (!this.connected) return;
-            this.ws.send(createMovePacket(angle));
+            if (!this.connected) {
+                console.warn(`${this.name}: غير متصل`);
+                return;
+            }
+            try {
+                this.ws.send(createMovePacket(angle));
+            } catch(e) {
+                console.error('خطأ في الإرسال:', e);
+            }
         }
         
         sendSplit() {
             if (!this.connected) return;
-            this.ws.send(createSplitPacket());
-        }
-        
-        draw() {
-            // الرسم يتم في حلقة منفصلة
+            try {
+                this.ws.send(createSplitPacket());
+            } catch(e) {
+                console.error('خطأ في الإرسال:', e);
+            }
         }
     }
     
@@ -471,8 +520,8 @@
     
     let activeTarget = 'target1';
     let targetMap = {
-        target1: 1, // Target 1 → الكرة 1
-        target2: 2  // Target 2 → الكرة 2
+        target1: 1,
+        target2: 2
     };
     
     function switchTarget(target) {
@@ -494,7 +543,7 @@
     // 7. التحكم
     // ============================================
     
-    // أزرار الاتجاهات (WASD)
+    // لوحة المفاتيح
     document.addEventListener('keydown', (e) => {
         const key = e.key;
         const angles = {
@@ -521,14 +570,19 @@
         btn.addEventListener('click', () => {
             const key = btn.dataset.key;
             console.log(`🔘 ${key} pressed`);
-            // هنا تقدر تربط كل زر بأمر معين
-            // مثال: تحريك الكرة في اتجاه معين أو تنفيذ أمر
             const ball = getActiveBall();
             if (ball) {
-                // مثلاً: زر A1 يحرك الكرة لليمين
-                if (key === 'A1') ball.sendMove(0);
-                else if (key === 'A2') ball.sendMove(-Math.PI/4);
-                // ... وهكذا
+                // كل زر يرسل أمر مختلف
+                const commands = {
+                    'A1': 0, 'A2': -Math.PI/4, 'A3': -Math.PI/2, 'A4': -3*Math.PI/4, 'A5': Math.PI,
+                    'B1': 0, 'B2': -Math.PI/4, 'B3': -Math.PI/2, 'B4': -3*Math.PI/4, 'B5': Math.PI,
+                    'C1': 0, 'C2': -Math.PI/4, 'C3': -Math.PI/2, 'C4': -3*Math.PI/4, 'C5': Math.PI,
+                    'D1': 0, 'D2': -Math.PI/4, 'D3': -Math.PI/2, 'D4': -3*Math.PI/4, 'D5': Math.PI,
+                    'E1': 0, 'E2': -Math.PI/4, 'E3': -Math.PI/2, 'E4': -3*Math.PI/4, 'E5': Math.PI
+                };
+                if (commands[key] !== undefined) {
+                    ball.sendMove(commands[key]);
+                }
             }
         });
     });
@@ -546,6 +600,14 @@
         });
     });
     
+    // أزرار Team
+    document.querySelectorAll('.team-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const team = btn.dataset.team;
+            console.log(`👤 Team ${team} selected`);
+        });
+    });
+    
     // ============================================
     // 8. عرض الكرات على Canvas
     // ============================================
@@ -557,7 +619,10 @@
         ctx.clearRect(0, 0, w, h);
         
         // خلفية
-        ctx.fillStyle = '#0f0f2a';
+        const grad = ctx.createRadialGradient(w/2, h/2, 0, w/2, h/2, w);
+        grad.addColorStop(0, '#1a1a3e');
+        grad.addColorStop(1, '#0a0a1a');
+        ctx.fillStyle = grad;
         ctx.fillRect(0, 0, w, h);
         
         // رسم كل الكرات
@@ -569,13 +634,15 @@
             const radius = Math.max(10, Math.min(50, p.mass / 2));
             
             // توهج
-            const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius * 2);
-            glow.addColorStop(0, ball.color + '40');
-            glow.addColorStop(1, 'transparent');
-            ctx.fillStyle = glow;
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, radius * 2, 0, Math.PI * 2);
-            ctx.fill();
+            try {
+                const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius * 2);
+                glow.addColorStop(0, ball.color + '40');
+                glow.addColorStop(1, 'transparent');
+                ctx.fillStyle = glow;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, radius * 2, 0, Math.PI * 2);
+                ctx.fill();
+            } catch(e) {}
             
             // الكرة
             ctx.shadowBlur = 20;
@@ -629,6 +696,7 @@
     console.log('🔗 5 كرات متصلة');
     console.log('🎯 Target 1 → P1, Target 2 → P2');
     console.log('⌨️ WASD + Space للكرة النشطة');
+    console.log('📡 جاري الاتصال بالسيرفر...');
     </script>
 </body>
 </html>
