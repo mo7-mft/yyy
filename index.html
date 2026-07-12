@@ -2,9 +2,8 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>3rb.io - واجهة مزدوجة (صفحة واحدة)</title>
+    <title>3rb.io - واجهة مزدوجة</title>
     <style>
-        /* صفحة واحدة غير مقسمة */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             background: #0a0a1a;
@@ -27,7 +26,6 @@
             display: block;
         }
         
-        /* المعلومات */
         .info {
             position: absolute;
             top: 20px;
@@ -63,7 +61,6 @@
         .status.online { color: #4CAF50; }
         .status.offline { color: #f44336; }
         
-        /* أزرار التحكم (زي A1-A4, B1-B4) */
         .controls {
             position: absolute;
             bottom: 30px;
@@ -144,6 +141,21 @@
             border-radius: 20px;
             pointer-events: none;
         }
+        
+        .error-msg {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(244, 67, 54, 0.2);
+            border: 1px solid rgba(244, 67, 54, 0.3);
+            color: #f44336;
+            padding: 8px 20px;
+            border-radius: 10px;
+            font-size: 12px;
+            z-index: 200;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -158,7 +170,7 @@
             </div>
         </div>
         
-        <div class="status online" id="statusDisplay">● متصل</div>
+        <div class="status offline" id="statusDisplay">● غير متصل</div>
         
         <div class="controls">
             <button class="btn a" data-dir="up">▲</button>
@@ -167,13 +179,14 @@
             <button class="btn a" data-dir="right">▶</button>
             <button class="btn a" id="splitBtn">💥</button>
             <button class="btn tab" id="tabBtn">🔄 Tab</button>
-            <button class="btn b" data-action="b1">B1</button>
-            <button class="btn b" data-action="b2">B2</button>
-            <button class="btn b" data-action="b3">B3</button>
-            <button class="btn b" data-action="b4">B4</button>
+            <button class="btn b" id="b1">B1</button>
+            <button class="btn b" id="b2">B2</button>
+            <button class="btn b" id="b3">B3</button>
+            <button class="btn b" id="b4">B4</button>
         </div>
         
         <div class="tab-hint">[Tab] للتبديل بين الكرتين</div>
+        <div class="error-msg" id="errorMsg">⚠️ لا يمكن الاتصال بالسيرفر</div>
     </div>
     
     <div class="leaderboard">
@@ -263,6 +276,20 @@
     }
     
     // ============================================
+    // إعداد Canvas
+    // ============================================
+    
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+    
+    // ============================================
     // كلاس اللاعب (كرة)
     // ============================================
     
@@ -271,26 +298,30 @@
             this.name = name;
             this.id = id;
             this.color = color;
-            this.x = 0;
-            this.y = 0;
+            this.x = canvas.width / 2;
+            this.y = canvas.height / 2;
             this.mass = 50;
             this.players = [];
             this.connected = false;
-            this.active = (id === 1); // الكرة 1 نشطة افتراضياً
+            this.active = (id === 1);
+            this.reconnectAttempts = 0;
             
-            // اتصال WebSocket لكل كرة
             this.connect();
         }
         
         connect() {
             try {
+                console.log(`🔗 محاولة اتصال ${this.name}...`);
                 this.ws = new WebSocket('wss://beta.3rb.io/ws');
                 this.ws.binaryType = 'arraybuffer';
                 
                 this.ws.onopen = () => {
                     this.connected = true;
+                    this.reconnectAttempts = 0;
+                    console.log(`✅ ${this.name} متصل`);
                     this.ws.send(createInfoPacket(this.name, this.id));
-                    this.updateUI();
+                    document.getElementById('errorMsg').style.display = 'none';
+                    if (this.active) this.updateUI();
                 };
                 
                 this.ws.onmessage = (e) => {
@@ -314,23 +345,45 @@
                 
                 this.ws.onclose = () => {
                     this.connected = false;
-                    this.updateUI();
-                    setTimeout(() => this.connect(), 3000);
+                    console.log(`❌ ${this.name} غير متصل`);
+                    document.getElementById('errorMsg').style.display = 'block';
+                    if (this.active) this.updateUI();
+                    
+                    if (this.reconnectAttempts < 5) {
+                        this.reconnectAttempts++;
+                        setTimeout(() => this.connect(), 3000);
+                    }
+                };
+                
+                this.ws.onerror = (err) => {
+                    console.error(`⚠️ خطأ في ${this.name}:`, err);
                 };
                 
             } catch(e) {
+                console.error(`❌ فشل اتصال ${this.name}:`, e);
                 setTimeout(() => this.connect(), 2000);
             }
         }
         
         sendMove(angle) {
-            if (!this.connected || !this.active) return;
-            this.ws.send(createMovePacket(angle));
+            if (!this.connected || !this.active) {
+                if (!this.connected) console.warn(`${this.name}: غير متصل`);
+                return;
+            }
+            try {
+                this.ws.send(createMovePacket(angle));
+            } catch(e) {
+                console.error('خطأ في الإرسال:', e);
+            }
         }
         
         sendSplit() {
             if (!this.connected || !this.active) return;
-            this.ws.send(createSplitPacket());
+            try {
+                this.ws.send(createSplitPacket());
+            } catch(e) {
+                console.error('خطأ في الإرسال:', e);
+            }
         }
         
         setActive(active) {
@@ -341,19 +394,28 @@
             }
         }
         
-        draw(ctx, w, h) {
+        draw() {
+            if (!ctx) return;
+            const w = canvas.width;
+            const h = canvas.height;
+            
             // خلفية
-            const grad = ctx.createRadialGradient(w/2, h/2, 0, w/2, h/2, w);
-            grad.addColorStop(0, '#1a1a3e');
-            grad.addColorStop(1, '#0a0a1a');
-            ctx.fillStyle = grad;
-            ctx.fillRect(0, 0, w, h);
+            try {
+                const grad = ctx.createRadialGradient(w/2, h/2, 0, w/2, h/2, w);
+                grad.addColorStop(0, '#1a1a3e');
+                grad.addColorStop(1, '#0a0a1a');
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, w, h);
+            } catch(e) {
+                ctx.fillStyle = '#0a0a1a';
+                ctx.fillRect(0, 0, w, h);
+            }
             
             if (this.players.length === 0) {
                 ctx.fillStyle = 'rgba(255,255,255,0.1)';
                 ctx.font = '16px Arial';
                 ctx.textAlign = 'center';
-                ctx.fillText('⏳ انتظار...', w/2, h/2);
+                ctx.fillText('⏳ انتظار البيانات...', w/2, h/2);
                 return;
             }
             
@@ -362,13 +424,15 @@
                 const isSelf = i === 0;
                 
                 // توهج
-                const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius * 2.5);
-                glow.addColorStop(0, isSelf ? this.color + '50' : 'rgba(255,255,255,0.03)');
-                glow.addColorStop(1, 'transparent');
-                ctx.fillStyle = glow;
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, radius * 2.5, 0, Math.PI * 2);
-                ctx.fill();
+                try {
+                    const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius * 2.5);
+                    glow.addColorStop(0, isSelf ? this.color + '40' : 'rgba(255,255,255,0.03)');
+                    glow.addColorStop(1, 'transparent');
+                    ctx.fillStyle = glow;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, radius * 2.5, 0, Math.PI * 2);
+                    ctx.fill();
+                } catch(e) {}
                 
                 // الكرة
                 ctx.shadowBlur = isSelf ? 30 : 5;
@@ -409,23 +473,29 @@
             const scoreEl = document.getElementById('scoreDisplay');
             const statusEl = document.getElementById('statusDisplay');
             
-            nameEl.textContent = (this.id === 1 ? '🟢' : '🔴') + ' الكرة ' + this.id;
-            nameEl.className = 'name ' + (this.id === 1 ? 'active-1' : 'active-2');
-            massEl.textContent = this.mass;
-            scoreEl.textContent = Math.floor(this.mass / 10);
-            statusEl.textContent = this.connected ? '● متصل' : '● غير متصل';
-            statusEl.className = 'status ' + (this.connected ? 'online' : 'offline');
+            if (nameEl) {
+                nameEl.textContent = (this.id === 1 ? '🟢' : '🔴') + ' الكرة ' + this.id;
+                nameEl.className = 'name ' + (this.id === 1 ? 'active-1' : 'active-2');
+            }
+            if (massEl) massEl.textContent = this.mass;
+            if (scoreEl) scoreEl.textContent = Math.floor(this.mass / 10);
+            if (statusEl) {
+                statusEl.textContent = this.connected ? '● متصل' : '● غير متصل';
+                statusEl.className = 'status ' + (this.connected ? 'online' : 'offline');
+            }
         }
         
         updateLeaderboard() {
             const entries = document.getElementById('leaderboardEntries');
+            if (!entries) return;
+            
             const sorted = this.players.map((p, i) => ({
                 name: i === 0 ? this.name : '👤 لاعب',
                 mass: p.mass
             })).sort((a, b) => b.mass - a.mass);
             
             if (sorted.length === 0) {
-                entries.innerHTML = '<div class="entry"><span>⏳ لا يوجد</span></div>';
+                entries.innerHTML = '<div class="entry"><span>⏳ لا يوجد لاعبين</span></div>';
                 return;
             }
             
@@ -439,25 +509,15 @@
     }
     
     // ============================================
-    // إنشاء كرتين (اتصالين)
+    // إنشاء الكرتين
     // ============================================
-    
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    
-    function resize() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-    }
-    resize();
-    window.addEventListener('resize', resize);
     
     const player1 = new GamePlayer('P1', 1, '#4CAF50');
     const player2 = new GamePlayer('P2', 2, '#f44336');
     let activePlayer = player1;
     
     // ============================================
-    // التبديل بين الكرتين (Tab)
+    // التبديل بين الكرتين
     // ============================================
     
     function switchPlayer() {
@@ -470,8 +530,11 @@
             player2.setActive(false);
             player1.setActive(true);
         }
-        document.getElementById('tabBtn').style.background = 'rgba(255,215,0,0.2)';
-        setTimeout(() => { document.getElementById('tabBtn').style.background = ''; }, 200);
+        const tabBtn = document.getElementById('tabBtn');
+        if (tabBtn) {
+            tabBtn.style.background = 'rgba(255,215,0,0.2)';
+            setTimeout(() => { tabBtn.style.background = ''; }, 200);
+        }
     }
     
     document.getElementById('tabBtn').addEventListener('click', switchPlayer);
@@ -484,7 +547,7 @@
     });
     
     // ============================================
-    // التحكم بالكرة النشطة
+    // التحكم
     // ============================================
     
     document.addEventListener('keydown', (e) => {
@@ -506,7 +569,6 @@
         }
     });
     
-    // أزرار التحكم
     document.querySelectorAll('.btn[data-dir]').forEach(btn => {
         const dir = btn.dataset.dir;
         const angles = { up: -Math.PI/2, down: Math.PI/2, left: Math.PI, right: 0 };
@@ -523,25 +585,30 @@
         activePlayer.sendSplit();
     });
     
+    // أزرار B1-B4 (مثال)
+    ['b1', 'b2', 'b3', 'b4'].forEach(id => {
+        document.getElementById(id).addEventListener('click', () => {
+            console.log(`🔘 ${id} pressed for ${activePlayer.name}`);
+            // هنا تقدر تضيف وظائف لهذه الأزرار
+        });
+    });
+    
     // ============================================
     // حلقة الرسم
     // ============================================
     
     function gameLoop() {
-        if (activePlayer === player1) {
-            player1.draw(ctx, canvas.width, canvas.height);
-        } else {
-            player2.draw(ctx, canvas.width, canvas.height);
+        if (activePlayer) {
+            activePlayer.draw();
         }
         requestAnimationFrame(gameLoop);
     }
     gameLoop();
     
     console.log('🎮 واجهة مزدوجة (صفحة واحدة) جاهزة!');
-    console.log('🔗 اتصال 1 → الكرة 1 (P1)');
-    console.log('🔗 اتصال 2 → الكرة 2 (P2)');
-    console.log('🔄 [Tab] للتبديل بين الكرتين');
-    console.log('👤 WASD + Space للكرة النشطة');
+    console.log('🔗 اتصال 1 → P1 | اتصال 2 → P2');
+    console.log('🔄 [Tab] للتبديل');
+    console.log('👤 WASD + Space');
     </script>
 </body>
 </html>
