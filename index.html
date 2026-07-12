@@ -2,83 +2,499 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>3rb.io - واجهة مزدوجة</title>
+    <title>3rb.io - Multibox</title>
     <style>
-        /* تصميم واجهتك */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0a1a;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            color: #fff;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        /* اللعبة (Canvas) */
+        .game-area {
+            flex: 1;
+            position: relative;
+            background: #0f0f2a;
+        }
+        
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        
+        /* لوحة التحكم الجانبية */
+        .sidebar {
+            width: 280px;
+            background: rgba(20, 20, 40, 0.95);
+            border-left: 2px solid rgba(255,255,255,0.1);
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .sidebar h2 {
+            color: #ffd700;
+            font-size: 18px;
+            text-align: center;
+            letter-spacing: 2px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 10px;
+        }
+        
+        /* الإعدادات */
+        .settings {
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            padding: 10px;
+        }
+        
+        .settings label {
+            display: block;
+            font-size: 13px;
+            color: #aaa;
+            padding: 4px 0;
+            cursor: pointer;
+        }
+        
+        .settings label input {
+            margin-right: 8px;
+        }
+        
+        /* Targets */
+        .targets {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .target-btn {
+            flex: 1;
+            padding: 8px;
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 6px;
+            background: rgba(255,255,255,0.05);
+            color: #fff;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+        
+        .target-btn.active {
+            border-color: #ffd700;
+            background: rgba(255,215,0,0.15);
+            color: #ffd700;
+        }
+        
+        .target-btn .status {
+            display: block;
+            font-size: 10px;
+            color: #666;
+            margin-top: 4px;
+        }
+        
+        /* TOTAL MASS */
+        .total-mass {
+            text-align: center;
+            padding: 10px;
+            background: rgba(255,215,0,0.1);
+            border-radius: 8px;
+            border: 1px solid rgba(255,215,0,0.2);
+        }
+        
+        .total-mass .number {
+            font-size: 28px;
+            font-weight: bold;
+            color: #ffd700;
+        }
+        
+        /* أزرار التحكم السريع */
+        .quick-buttons {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 5px;
+        }
+        
+        .quick-btn {
+            padding: 8px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 4px;
+            color: #fff;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        
+        .quick-btn:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .quick-btn:active {
+            transform: scale(0.9);
+        }
+        
+        /* Team Players */
+        .team-players {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+        
+        .team-btn {
+            padding: 6px 15px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 4px;
+            color: #fff;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        
+        /* شبكة الأزرار A1-E5 */
+        .grid-buttons {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 5px;
+        }
+        
+        .grid-btn {
+            padding: 10px 0;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 4px;
+            color: #fff;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        
+        .grid-btn:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .grid-btn:active {
+            transform: scale(0.9);
+        }
+        
+        .grid-btn.row-a { border-color: rgba(76, 175, 80, 0.3); color: #4CAF50; }
+        .grid-btn.row-b { border-color: rgba(33, 150, 243, 0.3); color: #2196F3; }
+        .grid-btn.row-c { border-color: rgba(255, 193, 7, 0.3); color: #FFC107; }
+        .grid-btn.row-d { border-color: rgba(255, 152, 0, 0.3); color: #FF9800; }
+        .grid-btn.row-e { border-color: rgba(244, 67, 54, 0.3); color: #f44336; }
     </style>
 </head>
 <body>
-    <!-- واجهة HTML -->
-    <div id="app">
-        <canvas id="gameCanvas"></canvas>
-        <div id="info">...</div>
-        <button id="tabBtn">🔄 Tab</button>
-        <button class="a">A1</button>
-        <button class="a">A2</button>
-        <!-- ... -->
+    <div class="container">
+        <!-- منطقة اللعبة -->
+        <div class="game-area">
+            <canvas id="gameCanvas"></canvas>
+        </div>
+        
+        <!-- لوحة التحكم -->
+        <div class="sidebar">
+            <h2>🎮 Multibox</h2>
+            
+            <!-- الإعدادات -->
+            <div class="settings">
+                <label><input type="checkbox" checked> BIGGEST CELL VIEWPORT</label>
+                <label><input type="checkbox" checked> VIEWPORT FOLLOWING MOUSE</label>
+                <label><input type="checkbox"> TARGETING PLAYERS</label>
+            </div>
+            
+            <!-- Targets -->
+            <div class="targets">
+                <button class="target-btn active" id="target1">
+                    🎯 Target 1
+                    <span class="status" id="target1Status">P1</span>
+                </button>
+                <button class="target-btn" id="target2">
+                    🎯 Target 2
+                    <span class="status" id="target2Status">P2</span>
+                </button>
+            </div>
+            
+            <!-- TOTAL MASS -->
+            <div class="total-mass">
+                TOTAL MASS
+                <div class="number" id="totalMass">0</div>
+            </div>
+            
+            <!-- أزرار التحكم السريع -->
+            <div class="quick-buttons">
+                <button class="quick-btn" data-cmd="follow">Follow</button>
+                <button class="quick-btn" data-cmd="split">Split</button>
+                <button class="quick-btn" data-cmd="eject">Eject</button>
+                <button class="quick-btn" data-cmd="merge">Merge</button>
+                <button class="quick-btn" data-cmd="stop">Stop</button>
+                <button class="quick-btn" data-cmd="target">Target</button>
+            </div>
+            
+            <!-- Team Players -->
+            <div style="text-align:center;font-size:13px;color:#aaa;">Team players</div>
+            <div class="team-players">
+                <button class="team-btn" data-team="1">👤 1</button>
+                <button class="team-btn" data-team="2">👤 2</button>
+                <button class="team-btn" data-team="3">👤 3</button>
+            </div>
+            
+            <!-- شبكة الأزرار A1-E5 -->
+            <div class="grid-buttons">
+                <button class="grid-btn row-a" data-key="A1">A1</button>
+                <button class="grid-btn row-a" data-key="A2">A2</button>
+                <button class="grid-btn row-a" data-key="A3">A3</button>
+                <button class="grid-btn row-a" data-key="A4">A4</button>
+                <button class="grid-btn row-a" data-key="A5">A5</button>
+                
+                <button class="grid-btn row-b" data-key="B1">B1</button>
+                <button class="grid-btn row-b" data-key="B2">B2</button>
+                <button class="grid-btn row-b" data-key="B3">B3</button>
+                <button class="grid-btn row-b" data-key="B4">B4</button>
+                <button class="grid-btn row-b" data-key="B5">B5</button>
+                
+                <button class="grid-btn row-c" data-key="C1">C1</button>
+                <button class="grid-btn row-c" data-key="C2">C2</button>
+                <button class="grid-btn row-c" data-key="C3">C3</button>
+                <button class="grid-btn row-c" data-key="C4">C4</button>
+                <button class="grid-btn row-c" data-key="C5">C5</button>
+                
+                <button class="grid-btn row-d" data-key="D1">D1</button>
+                <button class="grid-btn row-d" data-key="D2">D2</button>
+                <button class="grid-btn row-d" data-key="D3">D3</button>
+                <button class="grid-btn row-d" data-key="D4">D4</button>
+                <button class="grid-btn row-d" data-key="D5">D5</button>
+                
+                <button class="grid-btn row-e" data-key="E1">E1</button>
+                <button class="grid-btn row-e" data-key="E2">E2</button>
+                <button class="grid-btn row-e" data-key="E3">E3</button>
+                <button class="grid-btn row-e" data-key="E4">E4</button>
+                <button class="grid-btn row-e" data-key="E5">E5</button>
+            </div>
+        </div>
     </div>
-
+    
     <script>
     // ============================================
-    // 1. الاتصال الأول (الكرة الظاهرة)
+    // 1. دوال إنشاء الحزم (من تحليلنا السابق)
     // ============================================
-    const ws1 = new WebSocket('wss://beta.3rb.io/ws');
-    ws1.binaryType = 'arraybuffer';
     
-    ws1.onopen = () => {
-        console.log('✅ الكرة 1 متصلة');
-        ws1.send(createInfoPacket('P1', 1));
-    };
-    
-    ws1.onmessage = (e) => {
-        const data = new Uint8Array(e.data);
-        if (data[0] === 0x10) {
-            // تحديث الكرة الأولى
-            updatePlayer1(data);
-        }
-    };
-
-    // ============================================
-    // 2. الاتصال الثاني (المخفي)
-    // ============================================
-    const ws2 = new WebSocket('wss://beta.3rb.io/ws');
-    ws2.binaryType = 'arraybuffer';
-    
-    ws2.onopen = () => {
-        console.log('✅ الكرة 2 متصلة (مخفي)');
-        ws2.send(createInfoPacket('P2', 2));
-    };
-    
-    ws2.onmessage = (e) => {
-        const data = new Uint8Array(e.data);
-        if (data[0] === 0x10) {
-            // تحديث الكرة الثانية (مخفي)
-            updatePlayer2(data);
-        }
-    };
-
-    // ============================================
-    // 3. التبديل بين الكرتين (Tab)
-    // ============================================
-    let activePlayer = 1; // 1 أو 2
-    
-    document.getElementById('tabBtn').addEventListener('click', togglePlayer);
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Tab') {
-            e.preventDefault();
-            togglePlayer();
-        }
-    });
-    
-    function togglePlayer() {
-        activePlayer = (activePlayer === 1) ? 2 : 1;
-        // تحديث الواجهة للكرة النشطة
-        updateUI();
+    function createInfoPacket(name, id) {
+        const packet = new Uint8Array(13);
+        packet[0] = 0x31;
+        packet[1] = id & 0xFF;
+        packet[2] = (id >> 8) & 0xFF;
+        packet[3] = (id >> 16) & 0xFF;
+        packet[4] = (id >> 24) & 0xFF;
+        packet[5] = 0x01;
+        packet[6] = 0x00;
+        packet[7] = 0x00;
+        packet[8] = 0x00;
+        const nameBytes = new TextEncoder().encode(name.slice(0, 4));
+        packet.set(nameBytes, 9);
+        packet[9 + nameBytes.length] = 0x00;
+        return packet.buffer;
     }
-
+    
+    function createMovePacket(angle) {
+        const packet = new Uint8Array(17);
+        packet[0] = 0x10;
+        for (let i = 1; i <= 5; i++) packet[i] = 0x00;
+        const angleBuffer = new Float32Array([angle]);
+        const angleBytes = new Uint8Array(angleBuffer.buffer);
+        packet.set(angleBytes, 6);
+        packet[10] = 0x00;
+        packet[11] = 0x00;
+        packet[12] = 0x00;
+        packet[13] = 0x00;
+        packet[14] = 0xAC;
+        packet[15] = 0xA9;
+        packet[16] = 0xC0;
+        return packet.buffer;
+    }
+    
+    function createSplitPacket() {
+        const packet = new Uint8Array(3);
+        packet[0] = 0x11;
+        packet[1] = 0x00;
+        packet[2] = 0x00;
+        return packet.buffer;
+    }
+    
     // ============================================
-    // 4. التحكم (WASD للكرة النشطة فقط)
+    // 2. دوال قراءة الحزم
     // ============================================
+    
+    function readInt16LE(bytes, offset) {
+        return bytes[offset] | (bytes[offset + 1] << 8);
+    }
+    
+    function readFloat32LE(bytes, offset) {
+        const view = new DataView(bytes.buffer, bytes.byteOffset + offset, 4);
+        return view.getFloat32(0, true);
+    }
+    
+    function parsePlayers(bytes) {
+        const players = [];
+        let offset = 1;
+        while (offset + 12 <= bytes.length) {
+            const x = readInt16LE(bytes, offset);
+            const y = readInt16LE(bytes, offset + 2);
+            const mass = readFloat32LE(bytes, offset + 4);
+            if (x !== 0 || y !== 0) {
+                players.push({ x, y, mass: Math.floor(mass) });
+            } else {
+                break;
+            }
+            offset += 12;
+        }
+        return players;
+    }
+    
+    // ============================================
+    // 3. إعداد Canvas
+    // ============================================
+    
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    function resize() {
+        canvas.width = canvas.parentElement.clientWidth;
+        canvas.height = canvas.parentElement.clientHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+    
+    // ============================================
+    // 4. كلاس الكرة (Player)
+    // ============================================
+    
+    class GameBall {
+        constructor(name, id, color) {
+            this.name = name;
+            this.id = id;
+            this.color = color;
+            this.x = 0;
+            this.y = 0;
+            this.mass = 50;
+            this.connected = false;
+            this.players = [];
+            
+            this.connect();
+        }
+        
+        connect() {
+            try {
+                this.ws = new WebSocket('wss://beta.3rb.io/ws');
+                this.ws.binaryType = 'arraybuffer';
+                
+                this.ws.onopen = () => {
+                    this.connected = true;
+                    console.log(`✅ ${this.name} متصل`);
+                    this.ws.send(createInfoPacket(this.name, this.id));
+                };
+                
+                this.ws.onmessage = (e) => {
+                    if (e.data instanceof ArrayBuffer) {
+                        const data = new Uint8Array(e.data);
+                        if (data[0] === 0x10) {
+                            this.players = parsePlayers(data);
+                            if (this.players.length > 0) {
+                                this.x = this.players[0].x;
+                                this.y = this.players[0].y;
+                                this.mass = this.players[0].mass;
+                            }
+                            this.draw();
+                            this.updateTotalMass();
+                        }
+                    }
+                };
+                
+                this.ws.onclose = () => {
+                    this.connected = false;
+                    console.log(`❌ ${this.name} غير متصل`);
+                    setTimeout(() => this.connect(), 3000);
+                };
+                
+            } catch(e) {
+                setTimeout(() => this.connect(), 2000);
+            }
+        }
+        
+        sendMove(angle) {
+            if (!this.connected) return;
+            this.ws.send(createMovePacket(angle));
+        }
+        
+        sendSplit() {
+            if (!this.connected) return;
+            this.ws.send(createSplitPacket());
+        }
+        
+        draw() {
+            // الرسم يتم في حلقة منفصلة
+        }
+    }
+    
+    // ============================================
+    // 5. إنشاء الكرات
+    // ============================================
+    
+    const balls = {};
+    const ballColors = ['#4CAF50', '#f44336', '#2196F3', '#FFC107', '#9C27B0'];
+    
+    function addBall(name, id) {
+        const color = ballColors[(id - 1) % ballColors.length];
+        balls[id] = new GameBall(name, id, color);
+    }
+    
+    // إضافة 5 كرات
+    for (let i = 1; i <= 5; i++) {
+        addBall('P' + i, i);
+    }
+    
+    // ============================================
+    // 6. نظام Target
+    // ============================================
+    
+    let activeTarget = 'target1';
+    let targetMap = {
+        target1: 1, // Target 1 → الكرة 1
+        target2: 2  // Target 2 → الكرة 2
+    };
+    
+    function switchTarget(target) {
+        activeTarget = target;
+        document.querySelectorAll('.target-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.id === target);
+        });
+    }
+    
+    document.getElementById('target1').addEventListener('click', () => switchTarget('target1'));
+    document.getElementById('target2').addEventListener('click', () => switchTarget('target2'));
+    
+    function getActiveBall() {
+        const id = targetMap[activeTarget];
+        return balls[id] || null;
+    }
+    
+    // ============================================
+    // 7. التحكم
+    // ============================================
+    
+    // أزرار الاتجاهات (WASD)
     document.addEventListener('keydown', (e) => {
         const key = e.key;
         const angles = {
@@ -90,53 +506,129 @@
         
         if (['w', 'W', 's', 'S', 'a', 'A', 'd', 'D'].includes(key)) {
             e.preventDefault();
-            // إرسال الحركة للكرة النشطة فقط
-            if (activePlayer === 1) {
-                ws1.send(createMovePacket(angles[key]));
-            } else {
-                ws2.send(createMovePacket(angles[key]));
-            }
+            const ball = getActiveBall();
+            if (ball) ball.sendMove(angles[key]);
+        }
+        if (key === ' ') {
+            e.preventDefault();
+            const ball = getActiveBall();
+            if (ball) ball.sendSplit();
         }
     });
-
-    // ============================================
-    // دوال إنشاء الحزم (من تحليلنا)
-    // ============================================
-    function createInfoPacket(name, id) { /* ... */ }
-    function createMovePacket(angle) { /* ... */ }
-    function createSplitPacket() { /* ... */ }
-    function parsePlayers(bytes) { /* ... */ }
-
-    // ============================================
-    // دوال التحديث
-    // ============================================
-    let player1Data = { x: 0, y: 0, mass: 50 };
-    let player2Data = { x: 0, y: 0, mass: 50 };
     
-    function updatePlayer1(data) {
-        const players = parsePlayers(data);
-        if (players.length > 0) {
-            player1Data = players[0];
-            if (activePlayer === 1) drawPlayer(player1Data);
-        }
+    // أزرار الشبكة (A1-E5)
+    document.querySelectorAll('.grid-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const key = btn.dataset.key;
+            console.log(`🔘 ${key} pressed`);
+            // هنا تقدر تربط كل زر بأمر معين
+            // مثال: تحريك الكرة في اتجاه معين أو تنفيذ أمر
+            const ball = getActiveBall();
+            if (ball) {
+                // مثلاً: زر A1 يحرك الكرة لليمين
+                if (key === 'A1') ball.sendMove(0);
+                else if (key === 'A2') ball.sendMove(-Math.PI/4);
+                // ... وهكذا
+            }
+        });
+    });
+    
+    // أزرار التحكم السريع
+    document.querySelectorAll('.quick-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const cmd = btn.dataset.cmd;
+            console.log(`⚡ ${cmd} executed`);
+            const ball = getActiveBall();
+            if (ball) {
+                if (cmd === 'split') ball.sendSplit();
+                // أوامر أخرى...
+            }
+        });
+    });
+    
+    // ============================================
+    // 8. عرض الكرات على Canvas
+    // ============================================
+    
+    function drawAllBalls() {
+        const w = canvas.width;
+        const h = canvas.height;
+        
+        ctx.clearRect(0, 0, w, h);
+        
+        // خلفية
+        ctx.fillStyle = '#0f0f2a';
+        ctx.fillRect(0, 0, w, h);
+        
+        // رسم كل الكرات
+        Object.keys(balls).forEach(id => {
+            const ball = balls[id];
+            if (ball.players.length === 0) return;
+            
+            const p = ball.players[0];
+            const radius = Math.max(10, Math.min(50, p.mass / 2));
+            
+            // توهج
+            const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius * 2);
+            glow.addColorStop(0, ball.color + '40');
+            glow.addColorStop(1, 'transparent');
+            ctx.fillStyle = glow;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, radius * 2, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // الكرة
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = ball.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+            ctx.fillStyle = ball.color;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            
+            // الاسم
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(ball.name, p.x, p.y - radius - 10);
+            
+            // الكتلة
+            ctx.fillStyle = '#ffd700';
+            ctx.font = '12px Arial';
+            ctx.fillText(p.mass, p.x, p.y + 4);
+        });
     }
     
-    function updatePlayer2(data) {
-        const players = parsePlayers(data);
-        if (players.length > 0) {
-            player2Data = players[0];
-            if (activePlayer === 2) drawPlayer(player2Data);
-        }
+    // ============================================
+    // 9. تحديث TOTAL MASS
+    // ============================================
+    
+    function updateTotalMass() {
+        let total = 0;
+        Object.keys(balls).forEach(id => {
+            const ball = balls[id];
+            if (ball.players.length > 0) {
+                total += ball.players[0].mass;
+            }
+        });
+        document.getElementById('totalMass').textContent = total;
     }
     
-    function updateUI() {
-        // تحديث المعلومات المعروضة
-        document.getElementById('playerName').textContent = 
-            activePlayer === 1 ? '🟢 الكرة 1' : '🔴 الكرة 2';
-        // رسم الكرة النشطة
-        if (activePlayer === 1) drawPlayer(player1Data);
-        else drawPlayer(player2Data);
+    // ============================================
+    // 10. حلقة الرسم
+    // ============================================
+    
+    function gameLoop() {
+        drawAllBalls();
+        updateTotalMass();
+        requestAnimationFrame(gameLoop);
     }
+    gameLoop();
+    
+    console.log('🎮 Multibox جاهز!');
+    console.log('🔗 5 كرات متصلة');
+    console.log('🎯 Target 1 → P1, Target 2 → P2');
+    console.log('⌨️ WASD + Space للكرة النشطة');
     </script>
 </body>
 </html>
